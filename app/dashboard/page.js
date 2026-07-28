@@ -1,6 +1,8 @@
 import AppShell from "../components/AppShell";
 import SyncButton from "../components/SyncButton";
 import StatusControl from "../components/StatusControl";
+import VolumeChart from "../components/charts/VolumeChart";
+import ClassificationDonut from "../components/charts/ClassificationDonut";
 import { sql } from "../lib/db";
 import { getSessionUserId } from "../lib/auth";
 import { redirect } from "next/navigation";
@@ -33,7 +35,13 @@ async function getOverviewData(userId) {
   `;
 
   if (accounts.length === 0) {
-    return { accounts: [], stats: { needs_reply: 0, follow_up: 0, done: 0, total: 0 }, recent: [] };
+    return {
+      accounts: [],
+      stats: { needs_reply: 0, follow_up: 0, done: 0, total: 0 },
+      recent: [],
+      volumeData: [],
+      classificationData: { urgent: 0, routine: 0, noise: 0 },
+    };
   }
 
   const accountIds = accounts.map((a) => a.id);
@@ -52,14 +60,43 @@ async function getOverviewData(userId) {
     if (stats[m.status] !== undefined) stats[m.status]++;
   }
 
-  return { accounts, stats, recent };
+  // Analytics are always computed from the FULL message history for
+  // these accounts — never limited by the per-account "messages to pull
+  // per sync" setting, so changing that setting in Settings never
+  // affects these numbers retroactively.
+  const volumeRows = await sql`
+    SELECT d::date AS day, COUNT(m.id)::int AS count
+    FROM generate_series((current_date - interval '13 days')::date, current_date, interval '1 day') d
+    LEFT JOIN messages m
+      ON date_trunc('day', m.created_at) = d
+      AND m.account_id = ANY(${accountIds})
+    GROUP BY d
+    ORDER BY d
+  `;
+  const volumeData = volumeRows.map((r) => ({
+    label: new Date(r.day).toLocaleDateString(undefined, { month: "short", day: "numeric" }),
+    count: r.count,
+  }));
+
+  const classificationRows = await sql`
+    SELECT classification, COUNT(*)::int AS count
+    FROM messages
+    WHERE account_id = ANY(${accountIds})
+    GROUP BY classification
+  `;
+  const classificationData = { urgent: 0, routine: 0, noise: 0 };
+  for (const r of classificationRows) {
+    classificationData[r.classification] = r.count;
+  }
+
+  return { accounts, stats, recent, volumeData, classificationData };
 }
 
 export default async function DashboardPage() {
   const userId = await getSessionUserId();
   if (!userId) redirect("/login");
 
-  const { accounts, stats, recent } = await getOverviewData(userId);
+  const { accounts, stats, recent, volumeData, classificationData } = await getOverviewData(userId);
   const hasAccount = accounts.length > 0;
 
   return (
@@ -142,6 +179,31 @@ export default async function DashboardPage() {
                 <div className="text-2xl font-serif text-ink">{stats.total}</div>
                 <div className="text-xs text-inkDim mt-1">Total messages</div>
               </a>
+            </div>
+
+            {/* Analytics */}
+            <div className="grid md:grid-cols-3 gap-4 mb-10">
+              <div className="md:col-span-2 border border-black/10 bg-surface rounded-xl p-5">
+                <h3 className="text-sm font-medium mb-1">Message volume</h3>
+                <p className="text-xs text-inkFaint mb-3">Last 14 days, across all connected inboxes</p>
+                <VolumeChart data={volumeData} />
+              </div>
+              <div className="border border-black/10 bg-surface rounded-xl p-5">
+                <h3 className="text-sm font-medium mb-1">Priority breakdown</h3>
+                <p className="text-xs text-inkFaint mb-3">All-time, all inboxes</p>
+                <ClassificationDonut data={classificationData} />
+                <div className="flex items-center justify-center gap-4 mt-2">
+                  <span className="flex items-center gap-1.5 text-xs text-inkDim">
+                    <span className="w-2 h-2 rounded-full bg-clay" /> Urgent
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-inkDim">
+                    <span className="w-2 h-2 rounded-full bg-routine" /> Routine
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-inkDim">
+                    <span className="w-2 h-2 rounded-full bg-noise" /> Noise
+                  </span>
+                </div>
+              </div>
             </div>
 
             {/* Recent activity */}

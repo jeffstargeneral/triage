@@ -76,6 +76,7 @@ export async function POST(request) {
       const { classification, classifiedBy } = await classifyMessage(account.id, {
         fromAddress,
         subject,
+        bodyText,
       });
       const initialStatus = classification === "noise" ? "done" : "needs_reply";
 

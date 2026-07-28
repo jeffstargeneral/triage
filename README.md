@@ -291,6 +291,46 @@ into two: **Overview** (`/dashboard` — stat cards, connected accounts,
 recent activity) and **Messages** (`/messages` — the full searchable,
 paginated list, moved out of Overview to keep it focused).
 
+## 17. Google sign-in for the app itself
+
+Separate from connecting a Gmail inbox — this is "Sign in with Google"
+for logging into Triage itself, available on both `/login` and
+`/signup`. Uses the same Google OAuth client and credentials you already
+set up, just one more registered redirect URI:
+
+```
+{your domain}/api/auth/google-signin/callback
+```
+
+Add that in Google Cloud Console → Credentials → your OAuth client →
+Authorized redirect URIs, alongside the existing Gmail-connect one. No
+new environment variables needed — it reuses `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET`.
+
+## 18. Configurable sync limit
+
+Run `db/migration_006_sync_limit.sql` in Neon's SQL Editor. Each account
+now has a `sync_limit` (5–30, default 15) — how many recent inbox
+messages "Sync now" pulls, for all three providers. Changeable per
+account on the Settings page.
+
+**Analytics are unaffected by this setting** — the volume chart and
+priority breakdown on the Overview page are always computed from every
+message ever stored for your accounts, not just what's currently
+synced. Lowering the sync limit only changes how much *new* mail gets
+pulled per sync; it never deletes or hides history already saved.
+
+## 19. Classification fix — AI fallback instead of defaulting to "routine"
+
+Previously, any message that didn't match one of your rules silently
+became "routine" — which is why classification could feel like it
+wasn't doing much if you hadn't set up rules yet. Now, when no rule
+matches, a real AI classification call (same kie.ai / Gemini 2.5 Flash
+used for replies) decides between urgent/routine/noise based on the
+actual sender, subject, and body content. Rules still take priority and
+run first — they're free and instant — the AI only runs on whatever's
+left unmatched.
+
 ## What's real vs. still to build
 
 - **Real**: real user accounts (signup/login/logout, bcrypt-hashed

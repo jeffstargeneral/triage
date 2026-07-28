@@ -19,6 +19,7 @@ module.exports = {
         urgent: "#D97757",
         routine: "#5A7A3E",
         spam: "#9B9A91",
+        noise: "#9B9A91",
         waiting: "#6B5A9E",
         waitingTint: "#E9E6F2",
       },

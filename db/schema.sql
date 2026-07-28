@@ -37,6 +37,7 @@ create table if not exists accounts (
   signature text,
   auto_reply_context text,         -- e.g. "On vacation until Aug 5..."
   auto_reply_enabled boolean not null default false,
+  sync_limit integer not null default 15 check (sync_limit between 5 and 30),
   history_id text,         -- Gmail: last processed historyId
   delta_link text,         -- Outlook: last processed delta link
   created_at timestamptz not null default now(),

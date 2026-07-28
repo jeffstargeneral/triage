@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 
 async function getSettingsData(userId) {
   const accounts = await sql`
-    SELECT id, provider, email, display_name, signature, auto_reply_context, auto_reply_enabled
+    SELECT id, provider, email, display_name, signature, auto_reply_context, auto_reply_enabled, sync_limit
     FROM accounts
     WHERE user_id = ${userId}
     ORDER BY created_at DESC

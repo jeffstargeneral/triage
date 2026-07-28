@@ -18,7 +18,7 @@ export async function POST(request) {
     const { accountId } = await request.json();
 
     const rows = await sql`
-      SELECT id, email, secret_encrypted FROM accounts
+      SELECT id, email, secret_encrypted, sync_limit FROM accounts
       WHERE id = ${accountId} AND provider = 'microsoft' AND user_id = ${userId}
     `;
     const account = rows[0];
@@ -29,7 +29,7 @@ export async function POST(request) {
     const accessToken = await getMicrosoftAccessToken(decryptToken(account.secret_encrypted));
 
     const res = await fetch(
-      "https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top=15&$orderby=receivedDateTime desc",
+      `https://graph.microsoft.com/v1.0/me/mailFolders/inbox/messages?$top=${account.sync_limit || 15}&$orderby=receivedDateTime desc`,
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
@@ -48,7 +48,7 @@ export async function POST(request) {
       const bodyText = (msg.body?.content || "").slice(0, 5000);
       const messageIdHeader = msg.internetMessageId || null;
 
-      const { classification, classifiedBy } = await classifyMessage(account.id, { fromAddress, subject });
+      const { classification, classifiedBy } = await classifyMessage(account.id, { fromAddress, subject, bodyText });
       const initialStatus = classification === "noise" ? "done" : "needs_reply";
 
       try {

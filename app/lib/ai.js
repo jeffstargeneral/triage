@@ -63,3 +63,32 @@ Write the auto-reply email now.${signature ? ` Sign off with:\n${signature}` : "
     { role: "user", content: user },
   ]);
 }
+
+// Classification fallback — only called when no rule matches. Keeps the
+// output to exactly one word so it's safe to use directly as the
+// classification value.
+export async function classifyMessageWithAI({ fromAddress, subject, bodyText }) {
+  const system = `You classify inbox emails into exactly one of three categories: "urgent", "routine", or "noise".
+- urgent: needs a fast response — deadlines, direct requests, complaints, time-sensitive asks, anything from a real person expecting a reply soon.
+- routine: normal correspondence that isn't time-critical — receipts, confirmations, non-urgent replies, ordinary business email.
+- noise: newsletters, marketing, automated notifications, no-reply senders, anything nobody needs to act on.
+Respond with ONLY the single word: urgent, routine, or noise. Nothing else.`;
+
+  const user = `From: ${fromAddress}
+Subject: ${subject}
+
+${(bodyText || "").slice(0, 1500)}`;
+
+  try {
+    const result = await callKie([
+      { role: "system", content: system },
+      { role: "user", content: user },
+    ]);
+    const cleaned = result.toLowerCase().trim();
+    if (["urgent", "routine", "noise"].includes(cleaned)) return cleaned;
+    return "routine"; // unexpected model output — fail safe, not silent
+  } catch (err) {
+    console.error("AI classification failed, defaulting to routine:", err.message);
+    return "routine";
+  }
+}

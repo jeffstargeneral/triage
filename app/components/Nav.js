@@ -1,11 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Menu, X, ArrowRight, Hexagon, LogOut } from "lucide-react";
+import { Menu, X, ArrowRight, Hexagon } from "lucide-react";
 
+// This is the PUBLIC marketing nav only — home, login, signup, password
+// reset. It never shows account controls (email, logout, connect inbox)
+// so it can't be mistaken for the actual app. Once logged in, everything
+// past this nav lives inside AppShell.js, which has its own separate
+// sidebar navigation.
 export default function Nav() {
   const [open, setOpen] = useState(false);
-  const [auth, setAuth] = useState(null); // null = loading, then { loggedIn, email }
+  const [auth, setAuth] = useState(null); // null = loading, then { loggedIn }
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -13,11 +18,6 @@ export default function Nav() {
       .then(setAuth)
       .catch(() => setAuth({ loggedIn: false }));
   }, []);
-
-  async function handleLogout() {
-    await fetch("/api/auth/logout", { method: "POST" });
-    window.location.href = "/login";
-  }
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-bg/85 backdrop-blur-md border-b border-black/10">
@@ -37,38 +37,16 @@ export default function Nav() {
           <a href="/#roadmap" className="hover:text-ink transition-colors">
             Roadmap
           </a>
-          {auth?.loggedIn && (
-            <>
-              <a href="/dashboard" className="hover:text-ink transition-colors">
-                Dashboard
-              </a>
-              <a href="/contacts" className="hover:text-ink transition-colors">
-                Contacts
-              </a>
-              <a href="/settings" className="hover:text-ink transition-colors">
-                Settings
-              </a>
-            </>
-          )}
         </nav>
 
         <div className="hidden md:flex items-center gap-3">
           {auth?.loggedIn ? (
-            <>
-              <span className="text-xs text-inkFaint truncate max-w-[140px]">{auth.email}</span>
-              <a
-                href="/connect"
-                className="inline-flex items-center gap-2 text-sm font-medium bg-clay text-white px-5 py-2.5 rounded-lg hover:bg-clayDark transition-colors"
-              >
-                Connect inbox <ArrowRight size={15} />
-              </a>
-              <button
-                onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 text-sm text-inkDim hover:text-ink transition-colors"
-              >
-                <LogOut size={14} /> Log out
-              </button>
-            </>
+            <a
+              href="/dashboard"
+              className="inline-flex items-center gap-2 text-sm font-medium bg-clay text-white px-5 py-2.5 rounded-lg hover:bg-clayDark transition-colors"
+            >
+              Go to dashboard <ArrowRight size={15} />
+            </a>
           ) : auth?.loggedIn === false ? (
             <>
               <a href="/login" className="text-sm text-inkDim hover:text-ink transition-colors">
@@ -110,47 +88,15 @@ export default function Nav() {
           >
             Roadmap
           </a>
-          {auth?.loggedIn && (
-            <>
-              <a
-                href="/dashboard"
-                className="py-3 border-b border-black/10 font-serif text-lg"
-                onClick={() => setOpen(false)}
-              >
-                Dashboard
-              </a>
-              <a
-                href="/contacts"
-                className="py-3 border-b border-black/10 font-serif text-lg"
-                onClick={() => setOpen(false)}
-              >
-                Contacts
-              </a>
-              <a
-                href="/settings"
-                className="py-3 border-b border-black/10 font-serif text-lg"
-                onClick={() => setOpen(false)}
-              >
-                Settings
-              </a>
-            </>
-          )}
+
           {auth?.loggedIn ? (
-            <>
-              <a
-                href="/connect"
-                className="mt-4 inline-flex items-center justify-center gap-2 text-sm font-medium bg-clay text-white px-5 py-3 rounded-lg"
-                onClick={() => setOpen(false)}
-              >
-                Connect inbox <ArrowRight size={15} />
-              </a>
-              <button
-                onClick={handleLogout}
-                className="mt-2 inline-flex items-center justify-center gap-2 text-sm font-medium border border-black/15 px-5 py-3 rounded-lg"
-              >
-                <LogOut size={15} /> Log out
-              </button>
-            </>
+            <a
+              href="/dashboard"
+              className="mt-4 inline-flex items-center justify-center gap-2 text-sm font-medium bg-clay text-white px-5 py-3 rounded-lg"
+              onClick={() => setOpen(false)}
+            >
+              Go to dashboard <ArrowRight size={15} />
+            </a>
           ) : (
             <>
               <a

@@ -9,7 +9,9 @@ export async function POST(request) {
       return NextResponse.json({ ok: false, error: "Please log in." }, { status: 401 });
     }
 
-    const { accountId, displayName, signature, autoReplyContext, autoReplyEnabled } = await request.json();
+    const { accountId, displayName, signature, autoReplyContext, autoReplyEnabled, syncLimit } = await request.json();
+
+    const clampedSyncLimit = Math.min(30, Math.max(5, parseInt(syncLimit, 10) || 15));
 
     // WHERE clause includes user_id so someone can't update another
     // user's account by guessing an accountId.
@@ -18,7 +20,8 @@ export async function POST(request) {
       SET display_name = ${displayName},
           signature = ${signature},
           auto_reply_context = ${autoReplyContext},
-          auto_reply_enabled = ${Boolean(autoReplyEnabled)}
+          auto_reply_enabled = ${Boolean(autoReplyEnabled)},
+          sync_limit = ${clampedSyncLimit}
       WHERE id = ${accountId} AND user_id = ${userId}
     `;
 

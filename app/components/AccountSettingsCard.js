@@ -15,6 +15,7 @@ export default function AccountSettingsCard({ account, rules }) {
   const [signature, setSignature] = useState(account.signature || "");
   const [autoReplyContext, setAutoReplyContext] = useState(account.auto_reply_context || "");
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(account.auto_reply_enabled);
+  const [syncLimit, setSyncLimit] = useState(account.sync_limit || 15);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
@@ -37,6 +38,7 @@ export default function AccountSettingsCard({ account, rules }) {
         signature,
         autoReplyContext,
         autoReplyEnabled,
+        syncLimit,
       }),
     });
     setSaving(false);
@@ -104,6 +106,22 @@ export default function AccountSettingsCard({ account, rules }) {
             placeholder="On vacation until Aug 5. For urgent matters, contact james@company.com."
             className="w-full border border-black/15 rounded-lg px-3 py-2 text-sm bg-surfaceTint"
           />
+        </div>
+        <div>
+          <label className="text-xs text-inkDim block mb-1">
+            Messages to pull per sync <span className="text-inkFaint">(max 30)</span>
+          </label>
+          <select
+            value={syncLimit}
+            onChange={(e) => setSyncLimit(Number(e.target.value))}
+            className="border border-black/15 rounded-lg px-3 py-2 text-sm bg-surfaceTint"
+          >
+            {[5, 10, 15, 20, 25, 30].map((n) => (
+              <option key={n} value={n}>
+                {n} most recent
+              </option>
+            ))}
+          </select>
         </div>
         <label className="flex items-center gap-2 text-sm">
           <input

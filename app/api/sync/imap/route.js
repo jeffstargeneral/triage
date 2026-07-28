@@ -72,7 +72,7 @@ async function syncAccount(account) {
   const mailbox = await client.mailboxOpen("INBOX");
 
   const total = mailbox.exists;
-  const fetchCount = Math.min(total, 15);
+  const fetchCount = Math.min(total, account.sync_limit || 15);
   let stored = 0;
 
   if (fetchCount > 0) {
@@ -96,6 +96,7 @@ async function syncAccount(account) {
       const { classification, classifiedBy } = await classifyMessage(account.id, {
         fromAddress,
         subject,
+        bodyText,
       });
       const initialStatus = classification === "noise" ? "done" : "needs_reply";
 

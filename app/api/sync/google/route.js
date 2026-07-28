@@ -19,7 +19,7 @@ export async function POST(request) {
     const { accountId } = await request.json();
 
     const rows = await sql`
-      SELECT id, email, secret_encrypted FROM accounts
+      SELECT id, email, secret_encrypted, sync_limit FROM accounts
       WHERE id = ${accountId} AND provider = 'google' AND user_id = ${userId}
     `;
     const account = rows[0];
@@ -37,7 +37,7 @@ export async function POST(request) {
 
     const list = await gmail.users.messages.list({
       userId: "me",
-      maxResults: 15,
+      maxResults: account.sync_limit || 15,
       labelIds: ["INBOX"],
     });
 
@@ -55,7 +55,7 @@ export async function POST(request) {
       const messageIdHeader = headers.find((h) => h.name === "Message-ID")?.value || null;
       const bodyText = extractGmailBody(msg.data.payload).slice(0, 5000);
 
-      const { classification, classifiedBy } = await classifyMessage(account.id, { fromAddress, subject });
+      const { classification, classifiedBy } = await classifyMessage(account.id, { fromAddress, subject, bodyText });
       const initialStatus = classification === "noise" ? "done" : "needs_reply";
 
       try {
