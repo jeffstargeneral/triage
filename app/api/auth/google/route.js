@@ -10,6 +10,8 @@ export async function GET() {
     access_type: "offline", // needed to receive a refresh_token
     prompt: "consent",
     scope: [
+      "openid",
+      "https://www.googleapis.com/auth/userinfo.email",
       "https://www.googleapis.com/auth/gmail.readonly",
       "https://www.googleapis.com/auth/gmail.labels",
     ].join(" "),
