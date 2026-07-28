@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sql } from "../../../lib/db";
 import { decryptToken } from "../../../lib/crypto";
 import { classifyMessage } from "../../../lib/classify";
+import { getMicrosoftAccessToken } from "../../../lib/microsoft";
 
 // When you create a Microsoft Graph subscription, Graph immediately sends
 // a validation request with a `validationToken` query param — you must
@@ -18,23 +19,6 @@ export async function GET(request) {
   }
 
   return NextResponse.json({ ok: true });
-}
-
-async function getAccessToken(refreshToken) {
-  const tenant = process.env.MICROSOFT_TENANT_ID || "common";
-  const res = await fetch(`https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: process.env.MICROSOFT_CLIENT_ID,
-      client_secret: process.env.MICROSOFT_CLIENT_SECRET,
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-      scope: "Mail.Read Mail.ReadWrite offline_access",
-    }),
-  });
-  const data = await res.json();
-  return data.access_token;
 }
 
 // Real notifications arrive here as POST requests once the subscription
@@ -64,16 +48,21 @@ export async function POST(request) {
       const account = rows[0];
       if (!account) continue;
 
-      const accessToken = await getAccessToken(decryptToken(account.secret_encrypted));
+      const accessToken = await getMicrosoftAccessToken(decryptToken(account.secret_encrypted));
 
       // note.resource looks like "Users/{id}/Messages/{id}"
       const msgRes = await fetch(`https://graph.microsoft.com/v1.0/${note.resource}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Prefer: 'outlook.body-content-type="text"',
+        },
       });
       const msg = await msgRes.json();
 
       const fromAddress = msg.from?.emailAddress?.address || "";
       const subject = msg.subject || "";
+      const bodyText = (msg.body?.content || "").slice(0, 5000);
+      const messageIdHeader = msg.internetMessageId || null;
 
       const { classification, classifiedBy } = await classifyMessage(account.id, {
         fromAddress,
@@ -82,8 +71,8 @@ export async function POST(request) {
       const initialStatus = classification === "noise" ? "done" : "needs_reply";
 
       await sql`
-        INSERT INTO messages (account_id, provider_message_id, from_address, subject, classification, classified_by, status)
-        VALUES (${account.id}, ${msg.id}, ${fromAddress}, ${subject}, ${classification}, ${classifiedBy}, ${initialStatus})
+        INSERT INTO messages (account_id, provider_message_id, message_id_header, from_address, subject, body_text, classification, classified_by, status)
+        VALUES (${account.id}, ${msg.id}, ${messageIdHeader}, ${fromAddress}, ${subject}, ${bodyText}, ${classification}, ${classifiedBy}, ${initialStatus})
         ON CONFLICT (account_id, provider_message_id)
         DO UPDATE SET classification = EXCLUDED.classification, classified_by = EXCLUDED.classified_by
       `;

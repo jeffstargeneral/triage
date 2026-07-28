@@ -1,4 +1,4 @@
-import Nav from "../components/Nav";
+import AppShell from "../components/AppShell";
 import AccountSettingsCard from "../components/AccountSettingsCard";
 import { sql } from "../lib/db";
 import { getSessionUserId } from "../lib/auth";
@@ -31,11 +31,10 @@ export default async function SettingsPage() {
   const { accounts, rulesByAccount } = await getSettingsData(userId);
 
   return (
-    <>
-      <Nav />
-      <main className="pt-28 pb-24 max-w-2xl mx-auto px-6">
+    <AppShell>
+      <main className="px-5 sm:px-8 py-8 max-w-2xl">
         <p className="text-sm font-medium text-clayDark uppercase tracking-wide mb-2">Settings</p>
-        <h1 className="font-serif text-3xl mb-8">Reply profile & auto-reply rules.</h1>
+        <h1 className="font-serif text-2xl sm:text-3xl mb-8">Reply profile & auto-reply rules.</h1>
 
         {accounts.length === 0 ? (
           <div className="border border-dashed border-black/15 rounded-lg px-4 py-10 text-center text-sm text-inkDim">
@@ -51,6 +50,6 @@ export default async function SettingsPage() {
           ))
         )}
       </main>
-    </>
+    </AppShell>
   );
 }

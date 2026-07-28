@@ -1,4 +1,4 @@
-import Nav from "../../components/Nav";
+import AppShell from "../../components/AppShell";
 import ReplyPanel from "../../components/ReplyPanel";
 import StatusControl from "../../components/StatusControl";
 import { sql } from "../../lib/db";
@@ -49,14 +49,13 @@ export default async function MessageDetailPage({ params }) {
   if (!message) notFound();
 
   return (
-    <>
-      <Nav />
-      <main className="pt-24 pb-24 max-w-2xl mx-auto px-5 sm:px-6">
+    <AppShell>
+      <main className="px-5 sm:px-8 py-8 max-w-2xl">
         <a
-          href="/dashboard"
+          href="/messages"
           className="inline-flex items-center gap-1.5 text-sm text-inkDim hover:text-ink transition-colors mb-6"
         >
-          <ArrowLeft size={15} /> Back to inbox
+          <ArrowLeft size={15} /> Back to messages
         </a>
 
         <div className="border border-black/10 bg-surface rounded-2xl overflow-hidden">
@@ -105,6 +104,6 @@ export default async function MessageDetailPage({ params }) {
           <ReplyPanel messageId={message.id} alreadyReplied={Boolean(message.replied_at)} />
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

@@ -1,4 +1,4 @@
-import Nav from "../components/Nav";
+import AppShell from "../components/AppShell";
 import { sql } from "../lib/db";
 import { getSessionUserId } from "../lib/auth";
 import { redirect } from "next/navigation";
@@ -61,9 +61,8 @@ export default async function ContactsPage({ searchParams }) {
   const contacts = await getContacts(userId, q);
 
   return (
-    <>
-      <Nav />
-      <main className="pt-24 pb-24 max-w-3xl mx-auto px-5 sm:px-6">
+    <AppShell>
+      <main className="px-5 sm:px-8 py-8 max-w-5xl">
         <p className="text-sm font-medium text-clayDark uppercase tracking-wide mb-2">Contacts</p>
         <h1 className="font-serif text-2xl sm:text-3xl mb-2">Everyone who's emailed you.</h1>
         <p className="text-sm text-inkDim mb-6">
@@ -91,7 +90,7 @@ export default async function ContactsPage({ searchParams }) {
             {contacts.map((c) => (
               <a
                 key={c.from_address}
-                href={`/dashboard?q=${encodeURIComponent(c.from_address)}`}
+                href={`/messages?q=${encodeURIComponent(c.from_address)}`}
                 className="flex items-center gap-3 px-4 py-3.5 hover:bg-surfaceTint transition-colors"
               >
                 <div className="w-9 h-9 rounded-full bg-bgAlt flex items-center justify-center text-xs font-medium text-inkDim flex-shrink-0">
@@ -114,6 +113,6 @@ export default async function ContactsPage({ searchParams }) {
           </div>
         )}
       </main>
-    </>
+    </AppShell>
   );
 }

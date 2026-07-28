@@ -1,19 +1,18 @@
-import Nav from "../components/Nav";
+import AppShell from "../components/AppShell";
 import ImapConnectForm from "../components/ImapConnectForm";
 import { Lock, Mail } from "lucide-react";
 
 export default function ConnectPage() {
   return (
-    <>
-      <Nav />
-      <main className="pt-32 pb-24 max-w-md mx-auto px-6">
-        <p className="text-sm font-medium text-clayDark uppercase tracking-wide mb-4 text-center">
+    <AppShell>
+      <main className="px-5 sm:px-8 py-10 max-w-md">
+        <p className="text-sm font-medium text-clayDark uppercase tracking-wide mb-4">
           Connect your inbox
         </p>
-        <h1 className="font-serif text-3xl mb-4 text-center">
+        <h1 className="font-serif text-3xl mb-4">
           Choose your provider.
         </h1>
-        <p className="text-inkDim text-center mb-10">
+        <p className="text-inkDim mb-10">
           You'll approve access on Google or Microsoft's own sign-in page.
           We never see or store your password.
         </p>
@@ -59,6 +58,6 @@ export default function ConnectPage() {
           </p>
         </div>
       </main>
-    </>
+    </AppShell>
   );
 }

@@ -271,6 +271,26 @@ message count, last contact date, current status. No migration needed,
 it's a query over existing data. See "Coming next" at the top of this
 README for where this is headed (lead extraction, pipeline stages).
 
+## 15. Manual sync for Gmail and Outlook (fixes "connected but empty")
+
+Real-time push (`gmail.users.watch` / Graph subscriptions) still isn't
+wired up — so if you only connect via OAuth and wait, nothing arrives.
+Fixed for now with the same fix IMAP already had: a **Sync now** button
+on the Overview page works for all three providers (`/api/sync/google`,
+`/api/sync/microsoft`, `/api/sync/imap`), pulling the last 15 inbox
+messages on demand. Click it after connecting to actually see mail.
+
+## 16. Dashboard redesign
+
+The authenticated app (Overview, Messages, Contacts, Settings, Connect)
+now uses a proper sidebar shell (`app/components/AppShell.js`) instead
+of the marketing site's top nav — no Roadmap/How it works links inside
+the actual product, only inside the public marketing pages (home,
+login, signup, password reset). The old single dashboard page split
+into two: **Overview** (`/dashboard` — stat cards, connected accounts,
+recent activity) and **Messages** (`/messages` — the full searchable,
+paginated list, moved out of Overview to keep it focused).
+
 ## What's real vs. still to build
 
 - **Real**: real user accounts (signup/login/logout, bcrypt-hashed

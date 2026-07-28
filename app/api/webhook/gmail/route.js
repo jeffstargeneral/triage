@@ -3,6 +3,7 @@ import { google } from "googleapis";
 import { sql } from "../../../lib/db";
 import { decryptToken } from "../../../lib/crypto";
 import { classifyMessage } from "../../../lib/classify";
+import { extractGmailBody } from "../../../lib/gmail-body";
 
 // Google delivers Gmail push notifications through a Pub/Sub subscription
 // that POSTs here. The body contains a base64-encoded JSON payload with
@@ -63,13 +64,14 @@ export async function POST(request) {
       const msg = await gmail.users.messages.get({
         userId: "me",
         id: item.message.id,
-        format: "metadata",
-        metadataHeaders: ["From", "Subject"],
+        format: "full",
       });
 
       const headers = msg.data.payload?.headers || [];
       const fromAddress = headers.find((h) => h.name === "From")?.value || "";
       const subject = headers.find((h) => h.name === "Subject")?.value || "";
+      const messageIdHeader = headers.find((h) => h.name === "Message-ID")?.value || null;
+      const bodyText = extractGmailBody(msg.data.payload).slice(0, 5000);
 
       const { classification, classifiedBy } = await classifyMessage(account.id, {
         fromAddress,
@@ -78,8 +80,8 @@ export async function POST(request) {
       const initialStatus = classification === "noise" ? "done" : "needs_reply";
 
       await sql`
-        INSERT INTO messages (account_id, provider_message_id, from_address, subject, classification, classified_by, status)
-        VALUES (${account.id}, ${item.message.id}, ${fromAddress}, ${subject}, ${classification}, ${classifiedBy}, ${initialStatus})
+        INSERT INTO messages (account_id, provider_message_id, message_id_header, from_address, subject, body_text, classification, classified_by, status)
+        VALUES (${account.id}, ${item.message.id}, ${messageIdHeader}, ${fromAddress}, ${subject}, ${bodyText}, ${classification}, ${classifiedBy}, ${initialStatus})
         ON CONFLICT (account_id, provider_message_id)
         DO UPDATE SET classification = EXCLUDED.classification, classified_by = EXCLUDED.classified_by
       `;
