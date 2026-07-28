@@ -1,6 +1,6 @@
 import Nav from "./components/Nav";
 import TriageFlow from "./components/TriageFlow";
-import { Lock, Zap, Route as RouteIcon, ArrowRight } from "lucide-react";
+import { Lock, Zap, Route as RouteIcon, ArrowRight, CheckCircle2, Circle } from "lucide-react";
 
 export default function Home() {
   return (
@@ -99,6 +99,67 @@ export default function Home() {
                 Urgent messages get flagged instantly, routine ones get
                 filed, noise gets out of your way.
               </p>
+            </div>
+          </div>
+        </section>
+
+        {/* Roadmap */}
+        <section id="roadmap" className="max-w-5xl mx-auto px-6 py-20 border-t border-black/10">
+          <p className="text-sm font-medium text-clayDark uppercase tracking-wide mb-4">
+            Roadmap
+          </p>
+          <h2 className="font-serif text-3xl mb-4 max-w-xl">
+            Built as an email CRM, not just a sorter.
+          </h2>
+          <p className="text-inkDim mb-12 max-w-xl">
+            Triage started as inbox automation, but the direction is an
+            AI-powered email CRM — sync, replies, follow-ups, and contacts,
+            without the manual data entry.
+          </p>
+
+          <div className="grid md:grid-cols-2 gap-8">
+            <div>
+              <h3 className="font-medium text-sm uppercase tracking-wide text-routine mb-4 flex items-center gap-2">
+                <CheckCircle2 size={16} /> Shipped
+              </h3>
+              <ul className="flex flex-col gap-3">
+                {[
+                  "Gmail and Outlook 365 via OAuth, plus IMAP for Hostinger, Zoho, and cPanel hosts",
+                  "Rule-based classification — urgent, routine, noise",
+                  "Needs reply / Follow-up / Done status, updated automatically as you reply",
+                  "AI-drafted replies you can edit before sending",
+                  "Personalized AI auto-replies, triggered by your own rules",
+                  "Contacts view — every sender grouped automatically, no manual entry",
+                  "Search, filters, and pagination across your inbox",
+                  "Secure multi-user accounts, each with a fully private dashboard",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-inkDim">
+                    <CheckCircle2 size={15} className="text-routine mt-0.5 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-medium text-sm uppercase tracking-wide text-clayDark mb-4 flex items-center gap-2">
+                <Circle size={16} /> Coming next
+              </h3>
+              <ul className="flex flex-col gap-3">
+                {[
+                  "Lead extraction — company, role, and phone number pulled from message content by AI",
+                  "Pipeline stages for contacts — New, Contacted, Qualified, Won/Lost",
+                  "Per-contact notes and history, beyond raw message threads",
+                  "Real-time push for Gmail and Outlook, not just IMAP polling",
+                  "Sending replies from Gmail/Outlook directly, not IMAP/SMTP only",
+                  "An AI fallback for classification when no rule matches",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-inkDim">
+                    <Circle size={15} className="text-clay mt-0.5 flex-shrink-0" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
             </div>
           </div>
         </section>

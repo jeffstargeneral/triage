@@ -1,13 +1,16 @@
 import Nav from "../components/Nav";
 import AccountSettingsCard from "../components/AccountSettingsCard";
 import { sql } from "../lib/db";
+import { getSessionUserId } from "../lib/auth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
-async function getSettingsData() {
+async function getSettingsData(userId) {
   const accounts = await sql`
     SELECT id, provider, email, display_name, signature, auto_reply_context, auto_reply_enabled
     FROM accounts
+    WHERE user_id = ${userId}
     ORDER BY created_at DESC
   `;
 
@@ -22,7 +25,10 @@ async function getSettingsData() {
 }
 
 export default async function SettingsPage() {
-  const { accounts, rulesByAccount } = await getSettingsData();
+  const userId = await getSessionUserId();
+  if (!userId) redirect("/login");
+
+  const { accounts, rulesByAccount } = await getSettingsData(userId);
 
   return (
     <>

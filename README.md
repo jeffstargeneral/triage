@@ -1,16 +1,45 @@
 # Triage — Node Wealth
 
-Automatic inbox triage for Gmail and Outlook. Connects via OAuth (never a
-stored password), classifies new mail in real time, and routes it —
-urgent, routine, or noise.
+An AI-powered email CRM: connect an inbox, get every message classified
+and routed automatically, reply with AI-generated drafts (or fully
+automatic personalized auto-replies), and see every sender who's emailed
+you as a contact — all without manual data entry.
 
-This is the working skeleton: real OAuth flows for both providers, a
-landing page, a connect flow, and a dashboard. The classifier and
-persistent storage run on Neon Postgres, added via the Vercel
-Marketplace — one dashboard, no second service to manage credentials
-for. (Note: Vercel's own standalone "Postgres" product was discontinued
-and folded into this Neon integration — when you're in the Storage tab
-looking for a database to add, "Neon" is the option to pick.)
+Connects via OAuth for Gmail/Outlook (never a stored password) or plain
+IMAP/SMTP for other webmail providers (Hostinger, Zoho, cPanel hosts).
+Classifies new mail in real time — urgent, routine, or noise — and
+tracks a separate workflow status per message: Needs reply, Follow-up,
+or Done.
+
+## Shipped
+
+- Gmail and Outlook 365 via OAuth, plus IMAP for Hostinger, Zoho, and cPanel hosts
+- Rule-based classification — urgent, routine, noise
+- Needs reply / Follow-up / Done status, updated automatically as you reply
+- AI-drafted replies you can edit before sending (kie.ai / Gemini 2.5 Flash)
+- Personalized AI auto-replies, triggered by your own rules
+- Contacts view — every sender grouped automatically from your inbox
+- Search, filters, and pagination across your inbox
+- Secure multi-user accounts (signup/login/forgot-password), each with a fully private dashboard
+
+## Coming next
+
+- Lead extraction — company, role, and phone number pulled from message content by AI
+- Pipeline stages for contacts — New, Contacted, Qualified, Won/Lost
+- Per-contact notes and history, beyond raw message threads
+- Real-time push for Gmail and Outlook, not just IMAP polling
+- Sending replies from Gmail/Outlook directly, not IMAP/SMTP only
+- An AI fallback for classification when no rule matches
+
+## Architecture
+
+Real OAuth flows for both providers, a landing page, a connect flow, a
+dashboard, and a contacts view. The classifier and persistent storage
+run on Neon Postgres, added via the Vercel Marketplace — one dashboard,
+no second service to manage credentials for. (Note: Vercel's own
+standalone "Postgres" product was discontinued and folded into this
+Neon integration — when you're in the Storage tab looking for a
+database to add, "Neon" is the option to pick.)
 
 ## 1. Install
 
@@ -172,21 +201,96 @@ Both modes only work for IMAP-connected accounts right now, since
 sending requires SMTP, which Gmail/Outlook accounts don't have — those
 would need Gmail's send API / Graph's sendMail instead, not built yet.
 
+## 10. Set up user accounts (important — read this)
+
+Earlier versions of this app had **no login system at all** — every
+visitor to `/dashboard` saw every connected mailbox's data. That's fixed
+now: there are real user accounts, and every page/API route only shows
+data belonging to the logged-in user.
+
+1. Run `db/migration_003_users.sql` in Neon's SQL Editor (adds the
+   `users` table and ties `accounts` to a `user_id`). Fresh installs get
+   this automatically from `schema.sql`.
+2. Add `SESSION_SECRET` to your environment variables:
+   ```bash
+   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+   ```
+3. **If you already connected a real inbox before this migration** (very
+   likely, given how much testing we've done), that connection currently
+   has no owner. Sign up for a real account at `/signup`, then run this
+   in Neon's SQL Editor to claim it:
+   ```sql
+   UPDATE accounts SET user_id = (SELECT id FROM users WHERE email = 'you@example.com')
+   WHERE user_id IS NULL;
+   ```
+   Without this step, your existing connection won't show up anywhere
+   (it'll just belong to nobody, which is safe but invisible).
+
+Sessions are signed JWTs in an httpOnly cookie, checked by `middleware.js`
+for `/dashboard`, `/settings`, `/messages`, and `/connect` — visiting any
+of those without a valid session redirects to `/login` automatically.
+Every API route that touches a specific account or message (settings,
+replies, manual sync) also independently checks that the record actually
+belongs to the requesting user, not just that *someone* is logged in.
+
+## 11. Password reset
+
+Run `db/migration_004_password_reset.sql` in Neon's SQL Editor (adds
+reset token columns to `users`). Fresh installs get this automatically.
+
+**Honest limitation**: there's no transactional email service wired up,
+so `/forgot-password` doesn't actually send an email — it shows the
+reset link directly on screen instead. This is genuinely usable for
+yourself, but two things to know: (1) it means submitting an email
+reveals whether it's registered, which a real email-only flow avoids,
+and (2) before this app has actual outside users, swap in a real email
+provider (Resend is a clean fit) — the only file that needs to change
+is `app/api/auth/forgot-password/route.js`.
+
+## 12. Search and pagination
+
+Built in, no setup needed — the dashboard's message list has a search
+box (matches subject, sender, and body) and a classification filter,
+both as plain URL query params (`?q=...&classification=urgent&page=2`),
+so it works without JavaScript and is trivial to link to directly.
+
+## 13. Message status (workflow, separate from priority)
+
+Run `db/migration_005_message_status.sql` in Neon's SQL Editor. This adds
+a `status` column to `messages`: `needs_reply`, `follow_up`, or `done` —
+distinct from the `classification` column (urgent/routine/noise), which
+stays as a priority signal. New mail defaults to `needs_reply` (or
+`done` if classified as noise), flips to `follow_up` automatically once
+you send a reply, and can be changed manually anytime by clicking the
+status badge on any message.
+
+## 14. Contacts
+
+`/contacts` groups messages by sender into a lightweight contact list —
+message count, last contact date, current status. No migration needed,
+it's a query over existing data. See "Coming next" at the top of this
+README for where this is headed (lead extraction, pipeline stages).
+
 ## What's real vs. still to build
 
-- **Real**: OAuth + token exchange for both providers, refresh tokens
-  encrypted (AES-256-GCM) before they're stored in Neon Postgres, the
-  Gmail webhook fetching real message history and classifying it against
-  your rules, the Outlook webhook doing the same via Graph, plain IMAP
+- **Real**: real user accounts (signup/login/logout, bcrypt-hashed
+  passwords, signed httpOnly session cookies) with every account,
+  message, setting, and reply route scoped to the logged-in user only —
+  this was the biggest gap before and is now fixed throughout. OAuth +
+  token exchange for both providers, refresh tokens encrypted
+  (AES-256-GCM) before they're stored in Neon Postgres, the Gmail
+  webhook fetching real message history and classifying it against your
+  rules, the Outlook webhook doing the same via Graph, plain IMAP
   connect + test + classify for non-OAuth webmail providers, real message
   bodies parsed and stored (via mailparser) for IMAP, AI-generated manual
   reply drafts and one-click sending via SMTP, AI-generated auto-replies
   triggered by rule matches during sync, and the dashboard reading live
   data instead of mock rows.
 - **Still to build**: no LLM fallback yet for classification (messages
-  with no matching rule default to "routine" — separate from the AI
-  reply feature, which is fully wired). The `gmail.users.watch` / Graph
-  subscription calls that actually *start* real-time notifications for
-  Gmail/Outlook aren't wired up yet, and neither is sending replies for
-  those two providers (IMAP/SMTP only, for now). IMAP sync depends on
-  the external cron setup in step 8 above.
+  with no matching rule default to "routine"). The `gmail.users.watch` /
+  Graph subscription calls that actually *start* real-time notifications
+  for Gmail/Outlook aren't wired up yet, and neither is sending replies
+  for those two providers (IMAP/SMTP only, for now). IMAP sync depends
+  on the external cron setup in step 8 above. No "forgot password" flow
+  yet either — if you lose a password, you'd need to reset it directly
+  in Neon's SQL editor for now.

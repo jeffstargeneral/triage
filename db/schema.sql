@@ -12,8 +12,18 @@
 
 create extension if not exists "pgcrypto";
 
+create table if not exists users (
+  id uuid primary key default gen_random_uuid(),
+  email text not null unique,
+  password_hash text not null,
+  reset_token_hash text,
+  reset_token_expires timestamptz,
+  created_at timestamptz not null default now()
+);
+
 create table if not exists accounts (
   id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references users(id) on delete cascade,
   provider text not null check (provider in ('google', 'microsoft', 'imap')),
   email text not null,
   -- Refresh token (Google/Microsoft) or IMAP password — always encrypted
@@ -60,6 +70,11 @@ create table if not exists messages (
   body_text text,           -- full plain-text body, needed for AI replies
   classification text not null check (classification in ('urgent', 'routine', 'noise')),
   classified_by text not null check (classified_by in ('rule', 'llm')),
+  -- Workflow status, separate from priority classification above.
+  -- 'needs_reply' is the default for anything not classified as noise;
+  -- flips to 'follow_up' once you've replied (meaning: sent, now
+  -- watching for their response); 'done' means no action needed.
+  status text not null default 'needs_reply' check (status in ('needs_reply', 'follow_up', 'done')),
   replied_at timestamptz,
   created_at timestamptz not null default now(),
   unique (account_id, provider_message_id)

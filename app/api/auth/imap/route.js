@@ -2,15 +2,17 @@ import { NextResponse } from "next/server";
 import { ImapFlow } from "imapflow";
 import { sql } from "../../../lib/db";
 import { encryptToken } from "../../../lib/crypto";
+import { getSessionUserId } from "../../../lib/auth";
 
 // Generic IMAP connect for webmail providers that don't offer OAuth —
-// Hostinger, cPanel-based hosting, Zoho, and similar. The user's own
-// email password (or an app-specific password) is required here, since
-// plain IMAP has no OAuth concept. It's encrypted before storage, same
-// as the Google/Microsoft refresh tokens, but this path is inherently
-// less secure than OAuth — worth being upfront about that in the UI.
+// Hostinger, cPanel-based hosting, Zoho, and similar.
 export async function POST(request) {
   try {
+    const userId = await getSessionUserId();
+    if (!userId) {
+      return NextResponse.json({ ok: false, error: "Please log in first." }, { status: 401 });
+    }
+
     const { email, password, host, port, useSSL, smtpHost, smtpPort } = await request.json();
 
     if (!email || !password || !host || !port) {
@@ -25,8 +27,6 @@ export async function POST(request) {
       logger: false,
     });
 
-    // Just prove the credentials and host/port actually work — connect,
-    // confirm we can see the inbox, then disconnect immediately.
     try {
       await client.connect();
       await client.mailboxOpen("INBOX");
@@ -41,15 +41,16 @@ export async function POST(request) {
 
     try {
       await sql`
-        INSERT INTO accounts (provider, email, secret_encrypted, imap_host, imap_port, smtp_host, smtp_port)
-        VALUES ('imap', ${email}, ${encryptToken(password)}, ${host}, ${Number(port)}, ${smtpHost}, ${Number(smtpPort)})
+        INSERT INTO accounts (user_id, provider, email, secret_encrypted, imap_host, imap_port, smtp_host, smtp_port)
+        VALUES (${userId}, 'imap', ${email}, ${encryptToken(password)}, ${host}, ${Number(port)}, ${smtpHost}, ${Number(smtpPort)})
         ON CONFLICT (provider, email)
         DO UPDATE SET
           secret_encrypted = EXCLUDED.secret_encrypted,
           imap_host = EXCLUDED.imap_host,
           imap_port = EXCLUDED.imap_port,
           smtp_host = EXCLUDED.smtp_host,
-          smtp_port = EXCLUDED.smtp_port
+          smtp_port = EXCLUDED.smtp_port,
+          user_id = EXCLUDED.user_id
       `;
     } catch (dbError) {
       console.error("Postgres upsert failed:", dbError);

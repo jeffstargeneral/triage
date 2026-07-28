@@ -1,6 +1,9 @@
 import Nav from "../../components/Nav";
 import ReplyPanel from "../../components/ReplyPanel";
+import StatusControl from "../../components/StatusControl";
 import { sql } from "../../lib/db";
+import { getSessionUserId } from "../../lib/auth";
+import { redirect } from "next/navigation";
 import { ArrowLeft, Mail } from "lucide-react";
 import { notFound } from "next/navigation";
 
@@ -28,17 +31,21 @@ function formatDate(dateStr) {
   });
 }
 
-async function getMessage(id) {
+async function getMessage(id, userId) {
   const rows = await sql`
-    SELECT id, from_address, subject, body_text, classification, replied_at, created_at
-    FROM messages
-    WHERE id = ${id}
+    SELECT m.id, m.from_address, m.subject, m.body_text, m.classification, m.status, m.replied_at, m.created_at
+    FROM messages m
+    JOIN accounts a ON a.id = m.account_id
+    WHERE m.id = ${id} AND a.user_id = ${userId}
   `;
   return rows[0];
 }
 
 export default async function MessageDetailPage({ params }) {
-  const message = await getMessage(params.id);
+  const userId = await getSessionUserId();
+  if (!userId) redirect("/login");
+
+  const message = await getMessage(params.id, userId);
   if (!message) notFound();
 
   return (
@@ -59,11 +66,7 @@ export default async function MessageDetailPage({ params }) {
               <span className={`text-[11px] font-medium px-2.5 py-1 rounded-full ${tagStyles[message.classification]}`}>
                 {message.classification}
               </span>
-              {message.replied_at && (
-                <span className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-[#EAEFE6] text-routine">
-                  Replied
-                </span>
-              )}
+              <StatusControl messageId={message.id} status={message.status} />
             </div>
 
             <h1 className="font-serif text-2xl sm:text-[28px] leading-snug mb-5 break-words">

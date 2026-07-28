@@ -1,9 +1,15 @@
 import { NextResponse } from "next/server";
+import { getSessionUserId } from "../../../lib/auth";
 
 // Redirects the user to Microsoft's consent screen.
 // Uses the v2.0 endpoint so it works for both personal Outlook and
 // Microsoft 365 work/school accounts.
-export async function GET() {
+export async function GET(request) {
+  const userId = await getSessionUserId();
+  if (!userId) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
   const tenant = process.env.MICROSOFT_TENANT_ID || "common";
 
   const params = new URLSearchParams({
@@ -11,10 +17,11 @@ export async function GET() {
     redirect_uri: process.env.MICROSOFT_REDIRECT_URI,
     response_type: "code",
     response_mode: "query",
+    state: userId,
     scope: [
-      "offline_access", // needed to receive a refresh token
+      "offline_access",
       "Mail.Read",
-      "Mail.ReadWrite", // required to move/label messages
+      "Mail.ReadWrite",
     ].join(" "),
   });
 

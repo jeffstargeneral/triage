@@ -7,6 +7,7 @@ import { classifyMessage } from "../../../lib/classify";
 import { findMatchingRule } from "../../../lib/rules";
 import { generateAutoReply } from "../../../lib/ai";
 import { sendReply } from "../../../lib/smtp";
+import { getSessionUserId } from "../../../lib/auth";
 
 // Plain IMAP has no equivalent to Gmail push or Graph subscriptions —
 // there's no webhook to receive. IMAP's IDLE command gives near-real-time
@@ -50,7 +51,7 @@ async function maybeAutoReply(account, message) {
       inReplyTo: message.message_id_header,
     });
 
-    await sql`UPDATE messages SET replied_at = now() WHERE id = ${message.id}`;
+    await sql`UPDATE messages SET replied_at = now(), status = 'follow_up' WHERE id = ${message.id}`;
   } catch (err) {
     // Auto-reply failing should never break the sync itself — log and
     // move on, the message is still classified and stored either way.
@@ -96,11 +97,12 @@ async function syncAccount(account) {
         fromAddress,
         subject,
       });
+      const initialStatus = classification === "noise" ? "done" : "needs_reply";
 
       try {
         const rows = await sql`
-          INSERT INTO messages (account_id, provider_message_id, message_id_header, from_address, subject, body_text, classification, classified_by)
-          VALUES (${account.id}, ${providerMessageId}, ${messageIdHeader}, ${fromAddress}, ${subject}, ${bodyText}, ${classification}, ${classifiedBy})
+          INSERT INTO messages (account_id, provider_message_id, message_id_header, from_address, subject, body_text, classification, classified_by, status)
+          VALUES (${account.id}, ${providerMessageId}, ${messageIdHeader}, ${fromAddress}, ${subject}, ${bodyText}, ${classification}, ${classifiedBy}, ${initialStatus})
           ON CONFLICT (account_id, provider_message_id)
           DO UPDATE SET classification = EXCLUDED.classification, classified_by = EXCLUDED.classified_by
           RETURNING id, from_address, subject, body_text, message_id_header, replied_at
@@ -122,9 +124,15 @@ export async function POST(request) {
     const { accountId } = await request.json().catch(() => ({}));
 
     if (accountId) {
-      // Single-account manual sync, triggered by the "Sync now" button.
+      // Single-account manual sync, triggered by the "Sync now" button —
+      // requires a valid session, and only for an account that user owns.
+      const userId = await getSessionUserId();
+      if (!userId) {
+        return NextResponse.json({ ok: false, error: "Please log in." }, { status: 401 });
+      }
+
       const rows = await sql`
-        SELECT * FROM accounts WHERE id = ${accountId} AND provider = 'imap'
+        SELECT * FROM accounts WHERE id = ${accountId} AND provider = 'imap' AND user_id = ${userId}
       `;
       const account = rows[0];
 

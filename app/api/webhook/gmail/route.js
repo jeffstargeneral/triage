@@ -75,10 +75,11 @@ export async function POST(request) {
         fromAddress,
         subject,
       });
+      const initialStatus = classification === "noise" ? "done" : "needs_reply";
 
       await sql`
-        INSERT INTO messages (account_id, provider_message_id, from_address, subject, classification, classified_by)
-        VALUES (${account.id}, ${item.message.id}, ${fromAddress}, ${subject}, ${classification}, ${classifiedBy})
+        INSERT INTO messages (account_id, provider_message_id, from_address, subject, classification, classified_by, status)
+        VALUES (${account.id}, ${item.message.id}, ${fromAddress}, ${subject}, ${classification}, ${classifiedBy}, ${initialStatus})
         ON CONFLICT (account_id, provider_message_id)
         DO UPDATE SET classification = EXCLUDED.classification, classified_by = EXCLUDED.classified_by
       `;

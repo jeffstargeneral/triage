@@ -2,9 +2,15 @@ import { NextResponse } from "next/server";
 import { sql } from "../../../lib/db";
 import { decryptToken } from "../../../lib/crypto";
 import { sendReply } from "../../../lib/smtp";
+import { getSessionUserId } from "../../../lib/auth";
 
 export async function POST(request) {
   try {
+    const userId = await getSessionUserId();
+    if (!userId) {
+      return NextResponse.json({ ok: false, error: "Please log in." }, { status: 401 });
+    }
+
     const { messageId, text } = await request.json();
 
     const rows = await sql`
@@ -12,7 +18,7 @@ export async function POST(request) {
              a.email, a.secret_encrypted, a.smtp_host, a.smtp_port, a.provider
       FROM messages m
       JOIN accounts a ON a.id = m.account_id
-      WHERE m.id = ${messageId}
+      WHERE m.id = ${messageId} AND a.user_id = ${userId}
     `;
     const message = rows[0];
 
@@ -40,7 +46,7 @@ export async function POST(request) {
       inReplyTo: message.message_id_header,
     });
 
-    await sql`UPDATE messages SET replied_at = now() WHERE id = ${messageId}`;
+    await sql`UPDATE messages SET replied_at = now(), status = 'follow_up' WHERE id = ${messageId}`;
 
     return NextResponse.json({ ok: true });
   } catch (err) {
